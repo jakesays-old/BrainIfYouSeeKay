@@ -76,8 +76,10 @@ namespace Std
 		private TypeBuilder _debugType;
 		private bool _debugEnabled;
 		private string _debugTempPath;
+		private AssemblyBuilder _debugAssembly;
+		private string _debugAssemblyName;
 
-        private void InitDebugging()
+		private void InitDebugging()
 		{
 			if (!_debugEnabled)
 			{
@@ -87,10 +89,12 @@ namespace Std
 			_debugText = new StringBuilder();
 			var instanceId = _parseCounter++;
 
-			var name = $"BfAssembly{instanceId}";
+			_debugAssemblyName = $"BfAssembly{instanceId}";
 
-			var assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(
-				new AssemblyName(name), AssemblyBuilderAccess.Run);
+			_debugAssembly = AppDomain.CurrentDomain.DefineDynamicAssembly(
+				new AssemblyName(_debugAssemblyName), AssemblyBuilderAccess.RunAndSave,
+				_debugTempPath);
+
 			var daType = typeof (DebuggableAttribute);
 			var daCtor = daType.GetConstructor(new[] {typeof (DebuggableAttribute.DebuggingModes)});
 			var daBuilder = new CustomAttributeBuilder(daCtor, new object[]
@@ -98,8 +102,8 @@ namespace Std
 				DebuggableAttribute.DebuggingModes.DisableOptimizations |
 				DebuggableAttribute.DebuggingModes.Default
 			});
-			assembly.SetCustomAttribute(daBuilder);
-			var module = assembly.DefineDynamicModule(name, true);
+			_debugAssembly.SetCustomAttribute(daBuilder);
+			var module = _debugAssembly.DefineDynamicModule(_debugAssemblyName, true);
 			_debugType = module.DefineType($"BfType{instanceId}", TypeAttributes.Public);
 
 			//int[] memory, BfBuffer input, BfBuffer output
@@ -271,6 +275,8 @@ namespace Std
 
 				var completedType = _debugType.CreateType();
 				File.WriteAllText(_debugTempPath, _debugText.ToString());
+
+				_debugAssembly.Save(_debugAssemblyName + ".dll");
 
 				return new BfProgram(completedType.GetMethod(_debugMethod.Name));
 			}

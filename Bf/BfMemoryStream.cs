@@ -44,6 +44,11 @@ namespace Std
 			}
 		}
 
+		public void Reset()
+		{
+			_bufferIndex = 0;
+		}
+
 		public override char Get()
 		{
 			Check(Type.Read);
